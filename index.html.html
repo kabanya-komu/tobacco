@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="ja" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>減煙サポート</title>
+    
+    <!-- PWA / iOS WebApp Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="減煙サポート">
+    <meta name="theme-color" content="#0f172a">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Touch safety & iOS polish */
+        body {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            user-select: none;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Smooth tab transition */
+        .tab-content {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+        .tab-content.active {
+            display: block;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-full flex flex-col justify-between selection:bg-brand-500 selection:text-white">
+
+    <!-- Top App Bar -->
+    <header class="sticky top-0 z-20 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+            <span class="text-2xl">🚬</span>
+            <h1 class="text-lg font-bold bg-gradient-to-r from-emerald-400 to-teal-200 bg-clip-text text-transparent">減煙サポート</h1>
+        </div>
+        <div class="text-xs text-slate-400 bg-slate-800 px-2.5 py-1 rounded-full border border-slate-700" id="headerDate">
+            --/--
+        </div>
+    </header>
+
+    <!-- Main Dynamic Content Container -->
+    <main class="flex-1 max-w-md w-full mx-auto p-4 space-y-6 pb-24">
+        
+        <!-- Undo Toast Alert -->
+        <div id="undoToast" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-md bg-amber-500 text-slate-950 px-4 py-3 rounded-2xl shadow-xl flex items-center justify-between font-bold animate-bounce">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid font-bold fa-rotate-left"></i>
+                <span id="undoMsg">記録しました</span>
+            </div>
+            <button onclick="undoLastAction()" class="bg-slate-900 text-amber-400 px-3 py-1 rounded-lg text-sm font-black active:scale-95 transition">
+                取り消す
+            </button>
+        </div>
+
+        <!-- TAB 1: MAIN DASHBOARD -->
+        <section id="tab-main" class="tab-content active space-y-5">
+            
+            <!-- Daily Overview Cards Grid -->
+            <div class="grid grid-cols-2 gap-3">
+                <!-- Today Smoked Count -->
+                <div class="col-span-2 bg-slate-800/80 border border-slate-700/80 rounded-3xl p-5 text-center relative overflow-hidden shadow-lg">
+                    <div class="text-slate-400 text-xs font-semibold tracking-wider uppercase mb-1">今日の喫煙本数</div>
+                    <div class="flex items-baseline justify-center space-x-1">
+                        <span id="todayCigarettes" class="text-6xl font-black text-white tracking-tight">0</span>
+                        <span class="text-slate-400 text-lg font-bold">本</span>
+                    </div>
+                    
+                    <div class="mt-4 pt-3 border-t border-slate-700/60 flex justify-around text-xs">
+                        <div>
+                            <span class="text-slate-400 block">目標本数</span>
+                            <span id="targetCountDisplay" class="font-bold text-slate-200 text-sm">-- 本</span>
+                        </div>
+                        <div class="border-r border-slate-700/60"></div>
+                        <div>
+                            <span class="text-slate-400 block">目標まで</span>
+                            <span id="remainingCountDisplay" class="font-bold text-emerald-400 text-sm">-- 本</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Savings Card -->
+                <div class="bg-slate-800/80 border border-slate-700/80 rounded-3xl p-4 flex flex-col justify-between shadow-md">
+                    <div class="flex items-center justify-between text-xs text-slate-400">
+                        <span>今日の推定節約額</span>
+                        <i class="fa-solid fa-piggy-bank text-emerald-400"></i>
+                    </div>
+                    <div class="mt-2">
+                        <span id="todaySavings" class="text-2xl font-black text-emerald-400">¥0</span>
+                    </div>
+                    <div class="text-[10px] text-slate-500 mt-1">※基準本数との差分で計算</div>
+                </div>
+
+                <!-- No Smoke Rest Card -->
+                <div class="bg-slate-800/80 border border-slate-700/80 rounded-3xl p-4 flex flex-col justify-between shadow-md">
+                    <div class="flex items-center justify-between text-xs text-slate-400">
+                        <span>タバコなし休憩</span>
+                        <i class="fa-solid fa-mug-hot text-amber-400"></i>
+                    </div>
+                    <div class="mt-2 flex items-baseline space-x-1">
+                        <span id="todayNoSmokeRests" class="text-2xl font-black text-amber-400">0</span>
+                        <span class="text-xs text-slate-400 font-bold">回</span>
+                    </div>
+                    <div class="text-[10px] text-slate-500 mt-1">ナイスチョイス！</div>
+                </div>
+            </div>
+
+            <!-- Weekly Avg Stats -->
+            <div class="bg-slate-800/40 border border-slate-800 rounded-2xl p-3 px-4 flex items-center justify-between text-xs">
+                <span class="text-slate-400">直近7日間の平均喫煙本数</span>
+                <span id="weeklyAvgDisplay" class="font-bold text-slate-200">-- 本 / 日</span>
+            </div>
+
+            <!-- Main Big Action Buttons -->
+            <div class="space-y-3 pt-2">
+                <!-- Smoke Button -->
+                <button onclick="handleSmokeClick()" class="w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-extrabold py-5 px-6 rounded-3xl shadow-lg shadow-rose-950/40 active:scale-[0.98] transition flex items-center justify-between group">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl group-active:scale-90 transition">
+                            🚬
+                        </div>
+                        <div class="text-left">
+                            <div class="text-xl leading-snug">タバコを吸った</div>
+                            <div class="text-xs text-rose-200 font-normal">素直に1本記録します</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-rose-200"></i>
+                </button>
+
+                <!-- No Smoke Rest Button -->
+                <button onclick="recordNoSmokeRest()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold py-4 px-6 rounded-3xl shadow-lg shadow-emerald-950/40 active:scale-[0.98] transition flex items-center justify-between group">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center text-xl group-active:scale-90 transition">
+                            ☕
+                        </div>
+                        <div class="text-left">
+                            <div class="text-lg leading-snug">タバコなしで休憩</div>
+                            <div class="text-xs text-emerald-200 font-normal">吸わずにリフレッシュできた！</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-plus text-emerald-200"></i>
+                </button>
+
+                <!-- Pause / Wait Advice Button -->
+                <button onclick="showRandomPauseMessage()" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold py-3.5 px-6 rounded-2xl shadow active:scale-[0.98] transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    <span>吸う前にちょっと待つ（ヒント）</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- TAB 2: ANALYTICS & LOGS -->
+        <section id="tab-analytics" class="tab-content space-y-5">
+            <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+                <i class="fa-solid fa-chart-column text-emerald-400"></i>
+                <span>記録と分析</span>
+            </h2>
+
+            <!-- 7-Day Chart Section -->
+            <div class="bg-slate-800/80 border border-slate-700/80 rounded-3xl p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-slate-300">過去7日間の喫煙本数</h3>
+                    <span class="text-[10px] text-slate-500">点線：目標値</span>
+                </div>
+                <!-- SVG Bar Chart Container -->
+                <div id="chartContainer" class="w-full h-44 flex items-end justify-between pt-6 pb-2 px-1">
+                    <!-- SVG graph dynamically rendered here -->
+                </div>
+            </div>
+
+            <!-- Stats Overview Cards -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-3">
+                    <div class="text-xs text-slate-400">目標達成日数</div>
+                    <div id="statTargetAchievedDays" class="text-xl font-bold text-emerald-400 mt-1">0日</div>
+                </div>
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-3">
+                    <div class="text-xs text-slate-400">累計推定節約額</div>
+                    <div id="statTotalSavings" class="text-xl font-bold text-emerald-400 mt-1">¥0</div>
+                </div>
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-3">
+                    <div class="text-xs text-slate-400">習慣で吸った割合</div>
+                    <div id="statHabitRatio" class="text-xl font-bold text-amber-400 mt-1">0%</div>
+                </div>
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-3">
+                    <div class="text-xs text-slate-400">無煙休憩の累計</div>
+                    <div id="statTotalNoSmokeRests" class="text-xl font-bold text-teal-400 mt-1">0回</div>
+                </div>
+            </div>
+
+            <!-- Reward Progress -->
+            <div id="rewardCard" class="bg-slate-800/80 border border-slate-700/80 rounded-3xl p-4 space-y-2">
+                <div class="flex justify-between items-center text-xs">
+                    <span class="font-bold text-slate-300">🎁 自分へのご褒美</span>
+                    <span id="rewardProgressPercent" class="text-emerald-400 font-bold">0%</span>
+                </div>
+                <div id="rewardTitleDisplay" class="text-sm font-extrabold text-white">未設定</div>
+                <div class="w-full bg-slate-700 h-3 rounded-full overflow-hidden">
+                    <div id="rewardProgressBar" class="bg-emerald-500 h-full w-0 transition-all duration-500"></div>
+                </div>
+                <div class="flex justify-between text-[11px] text-slate-400">
+                    <span id="rewardCurrentSavings">節約額: ¥0</span>
+                    <span id="rewardTargetPrice">目標: ¥0</span>
+                </div>
+            </div>
+
+            <!-- Time Slot Distribution -->
+            <div class="bg-slate-800/80 border border-slate-700/80 rounded-3xl p-4 space-y-3">
+                <h3 class="text-sm font-bold text-slate-300">時間帯別の喫煙傾向</h3>
+                <div class="grid grid-cols-4 gap-2 text-center text-xs">
+                    <div class="bg-slate-900/50 p-2 rounded-xl">
+                        <div class="text-slate-400 text-[10px]">朝 (5-11)</div>
+                        <div id="timeSlotMorning" class="font-bold text-slate-200 mt-1">0本</div>
+                    </div>
+                    <div class="bg-slate-900/50 p-2 rounded-xl">
+                        <div class="text-slate-400 text-[10px]">昼 (11-17)</div>
+                        <div id="timeSlotNoon" class="font-bold text-slate-200 mt-1">0本</div>
+                    </div>
+                    <div class="bg-slate-900/50 p-2 rounded-xl">
+                        <div class="text-slate-400 text-[10px]">夕 (17-21)</div>
+                        <div id="timeSlotEvening" class="font-bold text-slate-200 mt-1">0本</div>
+                    </div>
+                    <div class="bg-slate-900/50 p-2 rounded-xl">
+                        <div class="text-slate-400 text-[10px]">夜 (21-5)</div>
+                        <div id="timeSlotNight" class="font-bold text-slate-200 mt-1">0本</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Logs List -->
+            <div class="bg-slate-800/80 border border-slate-700/80 rounded-3xl p-4 space-y-3">
+                <h3 class="text-sm font-bold text-slate-300">本日のタイムライン</h3>
+                <div id="todayLogsList" class="space-y-2 text-xs">
+                    <!-- Dynamic Log items -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: SETTINGS & DATA -->
+        <section id="tab-settings" class="tab-content space-y-5">
+            <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+                <i class="fa-solid fa-gear text-slate-400"></i>
+                <span>設定・データ管理</span>
+            </h2>
+
+            <!-- App Settings Form -->
+            <form onsubmit="saveSettings(event)" class="bg-slate-800/80 border border-slate-700/80 rounded-3xl p-5 space-y-4">
+                <h3 class="text-sm font-bold text-emerald-400 border-b border-slate-700 pb-2">目標・タバコ設定</h3>
+                
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">基準本数（いつもの1日の本数）</label>
+                    <input type="number" id="settingBaseline" min="1" max="100" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500">
+                    <p class="text-[10px] text-slate-500 mt-1">節約額の計算基準となります。</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">目標本数（1日）</label>
+                    <input type="number" id="settingTarget" min="0" max="100" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1">1箱の価格 (円)</label>
+                        <input type="number" id="settingPackPrice" min="100" max="3000" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1">1箱の本数</label>
+                        <input type="number" id="settingPackCount" min="10" max="50" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <h3 class="text-sm font-bold text-emerald-400 border-b border-slate-700 pb-2 pt-2">ご褒美の設定</h3>
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">目標のご褒美</label>
+                    <input type="text" id="settingRewardTitle" placeholder="例: ランニングシューズ" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">ご褒美の必要金額 (円)</label>
+                    <input type="number" id="settingRewardPrice" placeholder="例: 15000" min="0" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition active:scale-[0.98]">
+                    設定を保存する
+                </button>
+            </form>
+
+            <!-- Data Backup / Import / Export -->
+            <div class="bg-slate-800/80 border border-slate-700/80 rounded-3xl p-5 space-y-4">
+                <h3 class="text-sm font-bold text-slate-300 border-b border-slate-700 pb-2">データ管理・バックアップ</h3>
+                <p class="text-xs text-slate-400">
+                    Safariのキャッシュ消去等に備え、定期的なバックアップ（JSON出力）を推奨します。
+                </p>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="exportJSON()" class="bg-slate-700 hover:bg-slate-600 text-xs font-bold py-2.5 px-3 rounded-xl flex items-center justify-center space-x-1.5 text-slate-200">
+                        <i class="fa-solid fa-download"></i>
+                        <span>JSON保存</span>
+                    </button>
+                    <button onclick="exportCSV()" class="bg-slate-700 hover:bg-slate-600 text-xs font-bold py-2.5 px-3 rounded-xl flex items-center justify-center space-x-1.5 text-slate-200">
+                        <i class="fa-solid fa-file-csv"></i>
+                        <span>CSV出力</span>
+                    </button>
+                </div>
+
+                <div class="pt-2">
+                    <label class="block text-xs text-slate-300 mb-1">バックアップ(JSON)の復元</label>
+                    <input type="file" id="importFileInput" accept=".json" class="hidden" onchange="handleImportFile(event)">
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="triggerImport('merge')" class="bg-slate-900 border border-slate-700 hover:bg-slate-800 text-xs font-bold py-2.5 px-2 rounded-xl text-emerald-400">
+                            データを統合復元
+                        </button>
+                        <button onclick="triggerImport('replace')" class="bg-slate-900 border border-slate-700 hover:bg-slate-800 text-xs font-bold py-2.5 px-2 rounded-xl text-amber-400">
+                            置き換えて復元
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-700/60">
+                    <button onclick="confirmResetAllData()" class="w-full bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/50 text-rose-400 font-bold py-2.5 text-xs rounded-xl transition">
+                        全データを消去・初期化する
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="fixed bottom-0 left-0 right-0 z-20 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-6 py-2">
+        <div class="max-w-md mx-auto flex justify-around items-center">
+            <button onclick="switchTab('main')" id="nav-main" class="nav-btn flex flex-col items-center text-emerald-400 font-bold">
+                <i class="fa-solid fa-house text-lg"></i>
+                <span class="text-[10px] mt-0.5">ホーム</span>
+            </button>
+            <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-btn flex flex-col items-center text-slate-500 hover:text-slate-300">
+                <i class="fa-solid fa-chart-pie text-lg"></i>
+                <span class="text-[10px] mt-0.5">記録・分析</span>
+            </button>
+            <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn flex flex-col items-center text-slate-500 hover:text-slate-300">
+                <i class="fa-solid fa-sliders text-lg"></i>
+                <span class="text-[10px] mt-0.5">設定</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- MODAL 1: PRE-SMOKE MESSAGE & PAUSE DIALOG -->
+    <div id="pauseModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-5 transform transition-all">
+            <div class="text-center space-y-2">
+                <div class="text-4xl" id="pauseEmoji">💡</div>
+                <h3 class="text-lg font-extrabold text-white">吸う前のワンクッション</h3>
+                <p id="pauseMessageText" class="text-slate-200 text-sm font-medium leading-relaxed bg-slate-900/80 p-4 rounded-2xl border border-slate-700/50">
+                    メッセージロード中...
+                </p>
+            </div>
+            
+            <div class="space-y-2 pt-2">
+                <button onclick="proceedToPostSmokeReview()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-2xl text-sm transition">
+                    やっぱり吸う 🚬
+                </button>
+                <button onclick="cancelSmokeAndRecordRest()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold py-3 rounded-2xl text-sm shadow-md transition">
+                    吸わずに休憩にする ☕
+                </button>
+                <button onclick="closeModal('pauseModal')" class="w-full text-slate-400 hover:text-slate-200 text-xs py-2">
+                    とじる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: POST-SMOKE REFLECTION (SURVEY) -->
+    <div id="reviewModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-5">
+            <div class="text-center space-y-1">
+                <div class="text-3xl">😏</div>
+                <h3 class="text-lg font-bold text-white">今回の1本はどうだった？</h3>
+                <p class="text-xs text-slate-400">振り返りは自分のパターンを知るヒントになります</p>
+            </div>
+
+            <!-- Question 1: Satisfaction -->
+            <div class="space-y-2">
+                <label class="block text-xs font-semibold text-slate-300">【満足度】</label>
+                <div class="grid grid-cols-3 gap-2 text-xs">
+                    <button type="button" onclick="selectSurvey('satisfaction', 'うまかった', this)" class="survey-btn-sat bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-200 p-2.5 rounded-xl font-bold transition">
+                        うまかった！😆
+                    </button>
+                    <button type="button" onclick="selectSurvey('satisfaction', '普通', this)" class="survey-btn-sat bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-200 p-2.5 rounded-xl font-bold transition">
+                        いつも通り😗
+                    </button>
+                    <button type="button" onclick="selectSurvey('satisfaction', '微妙', this)" class="survey-btn-sat bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-200 p-2.5 rounded-xl font-bold transition">
+                        イマイチ😅
+                    </button>
+                </div>
+            </div>
+
+            <!-- Question 2: Mindfulness -->
+            <div class="space-y-2">
+                <label class="block text-xs font-semibold text-slate-300">【大事に吸えたか？】</label>
+                <div class="space-y-2 text-xs">
+                    <button type="button" onclick="selectSurvey('mindfulness', '味わった', this)" class="survey-btn-mind w-full bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-200 p-2.5 rounded-xl text-left font-semibold transition">
+                        🍃 ちゃんと休憩して味わった
+                    </button>
+                    <button type="button" onclick="selectSurvey('mindfulness', '習慣', this)" class="survey-btn-mind w-full bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-200 p-2.5 rounded-xl text-left font-semibold transition">
+                        🤖 ほぼ習慣・なんとなくで吸ってた
+                    </button>
+                    <button type="button" onclick="selectSurvey('mindfulness', '不要だったかも', this)" class="survey-btn-mind w-full bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-200 p-2.5 rounded-xl text-left font-semibold transition">
+                        💭 吸わなくてもよかったかも
+                    </button>
+                </div>
+            </div>
+
+            <div class="pt-2 flex justify-between space-x-2">
+                <button onclick="skipReviewAndSave()" class="w-1/3 bg-slate-700 text-slate-300 py-2.5 rounded-xl text-xs font-bold">
+                    スキップ
+                </button>
+                <button onclick="completeReviewAndSave()" class="w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-bold shadow-md">
+                    記録完了
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN JAVASCRIPT LOGIC -->
+    <script>
+        // --- DATA STRUCTURE & INITIAL STATE ---
+        const DEFAULT_SETTINGS = {
+            baseline: 15,     // 普段の喫煙本数
+            target: 12,       // 目標本数
+            packPrice: 600,   // 1箱の価格
+            packCount: 20,    // 1箱の本数
+            rewardTitle: '欲しいもの・旅行の足し',
+            rewardPrice: 30000
+        };
+
+        let appData = {
+            settings: { ...DEFAULT_SETTINGS },
+            logs: [] // { id, timestamp, dateStr, type: 'smoke'|'no_smoke_rest', satisfaction, mindfulness }
+        };
+
+        let lastAction = null; // For Undo
+        let currentReviewState = { satisfaction: null, mindfulness: null };
+        let importTypeMode = 'merge';
+
+        // Pre-smoke Humorous Messages
+        const PAUSE_MESSAGES = [
+            "今日の1本目はランニングの後にした方が美味しいぞぉ🤤",
+            "我慢した後のタバコは美味すぎるぞぉ😆",
+            "おっと、その休憩、タバコなしでも成立するんじゃない？😏",
+            "5分待ってみな。吸うかどうかは、そのあと決めればいい😆",
+            "我慢大会じゃないぞ。自分で選べる男になるんだ😎",
+            "本当に吸いたい？ それとも休憩時間だから？🤔",
+            "吸ってもいい。ちょっと考えてから吸うのもいい😗",
+            "一本吸う間に、美味しい珈琲を一口飲むのもアリだぞ☕",
+            "深呼吸を3回してみよう。それでまだ吸いたければどうぞ💨",
+            "その1本、今日のMVP（最高の1本）になりそう？✨"
+        ];
+
+        // --- CORE INITIALIZATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            loadDataFromStorage();
+            updateHeaderDate();
+            renderDashboard();
+            renderAnalytics();
+            fillSettingsForm();
+        });
+
+        function updateHeaderDate() {
+            const now = new Date();
+            const month = now.getMonth() + 1;
+            const date = now.getDate();
+            const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+            document.getElementById('headerDate').textContent = `${month}/${date}(${dayNames[now.getDay()]})`;
+        }
+
+        // --- LOCAL STORAGE HELPERS ---
+        function loadDataFromStorage() {
+            try {
+                const stored = localStorage.getItem('smoke_support_app_data');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    appData = {
+                        settings: { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) },
+                        logs: parsed.logs || []
+                    };
+                }
+            } catch (e) {
+                console.error("Failed to load local storage:", e);
+                showToast("データの読み込みに失敗しました");
+            }
+        }
+
+        function saveDataToStorage() {
+            try {
+                localStorage.setItem('smoke_support_app_data', JSON.stringify(appData));
+            } catch (e) {
+                console.error("Failed to save to local storage:", e);
+                alert("ストレージの空き容量が不足しているか、保存に失敗しました。");
+            }
+        }
+
+        // --- DATE UTILS ---
+        function getTodayStr() {
+            const now = new Date();
+            return formatDateStr(now);
+        }
+
+        function formatDateStr(dateObj) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        // --- DASHBOARD RENDER & LOGIC ---
+        function renderDashboard() {
+            const todayStr = getTodayStr();
+            const todayLogs = appData.logs.filter(l => l.dateStr === todayStr);
+            
+            const smokedCount = todayLogs.filter(l => l.type === 'smoke').length;
+            const noSmokeRestCount = todayLogs.filter(l => l.type === 'no_smoke_rest').length;
+            
+            const target = appData.settings.target;
+            const remaining = target - smokedCount;
+
+            // UI Updates
+            document.getElementById('todayCigarettes').textContent = smokedCount;
+            document.getElementById('todayNoSmokeRests').textContent = noSmokeRestCount;
+            document.getElementById('targetCountDisplay').textContent = `${target} 本`;
+
+            const remElem = document.getElementById('remainingCountDisplay');
+            if (remaining >= 0) {
+                remElem.textContent = `あと ${remaining} 本`;
+                remElem.className = "font-bold text-emerald-400 text-sm";
+            } else {
+                remElem.textContent = `${Math.abs(remaining)} 本超過`;
+                remElem.className = "font-bold text-amber-400 text-sm";
+            }
+
+            // Savings calculation for today
+            const baseline = appData.settings.baseline;
+            const pricePerCig = appData.settings.packPrice / appData.settings.packCount;
+            const savedCigsToday = Math.max(0, baseline - smokedCount);
+            const todaySavingsVal = Math.floor(savedCigsToday * pricePerCig);
+            document.getElementById('todaySavings').textContent = `¥${todaySavingsVal.toLocaleString()}`;
+
+            // Weekly Average
+            const weeklyAvg = calculateWeeklyAverage();
+            document.getElementById('weeklyAvgDisplay').textContent = `${weeklyAvg} 本 / 日`;
+        }
+
+        function calculateWeeklyAverage() {
+            const days = 7;
+            let total = 0;
+            const now = new Date();
+
+            for (let i = 0; i < days; i++) {
+                const d = new Date();
+                d.setDate(now.getDate() - i);
+                const dStr = formatDateStr(d);
+                const daySmokes = appData.logs.filter(l => l.dateStr === dStr && l.type === 'smoke').length;
+                total += daySmokes;
+            }
+            return (total / days).toFixed(1);
+        }
+
+        // --- USER ACTIONS ---
+        function handleSmokeClick() {
+            // Show pause modal first for gentle mindfulness
+            showRandomPauseMessage();
+        }
+
+        function showRandomPauseMessage() {
+            const randomIndex = Math.floor(Math.random() * PAUSE_MESSAGES.length);
+            document.getElementById('pauseMessageText').textContent = PAUSE_MESSAGES[randomIndex];
+            openModal('pauseModal');
+        }
+
+        function proceedToPostSmokeReview() {
+            closeModal('pauseModal');
+            // Reset survey form state
+            currentReviewState = { satisfaction: null, mindfulness: null };
+            document.querySelectorAll('.survey-btn-sat, .survey-btn-mind').forEach(btn => {
+                btn.classList.remove('bg-emerald-600', 'text-white', 'border-emerald-500');
+                btn.classList.add('bg-slate-900', 'text-slate-200');
+            });
+            openModal('reviewModal');
+        }
+
+        function cancelSmokeAndRecordRest() {
+            closeModal('pauseModal');
+            recordNoSmokeRest();
+        }
+
+        function selectSurvey(category, value, btnElem) {
+            currentReviewState[category] = value;
+            const btnClass = category === 'satisfaction' ? '.survey-btn-sat' : '.survey-btn-mind';
+            document.querySelectorAll(btnClass).forEach(b => {
+                b.classList.remove('bg-emerald-600', 'text-white', 'border-emerald-500');
+                b.classList.add('bg-slate-900', 'text-slate-200');
+            });
+            btnElem.classList.remove('bg-slate-900', 'text-slate-200');
+            btnElem.classList.add('bg-emerald-600', 'text-white', 'border-emerald-500');
+        }
+
+        function completeReviewAndSave() {
+            recordCigarette(currentReviewState.satisfaction, currentReviewState.mindfulness);
+            closeModal('reviewModal');
+        }
+
+        function skipReviewAndSave() {
+            recordCigarette(null, null);
+            closeModal('reviewModal');
+        }
+
+        function recordCigarette(satisfaction = null, mindfulness = null) {
+            const now = new Date();
+            const newLog = {
+                id: Date.now(),
+                timestamp: now.getTime(),
+                dateStr: formatDateStr(now),
+                type: 'smoke',
+                satisfaction,
+                mindfulness
+            };
+            
+            appData.logs.push(newLog);
+            saveDataToStorage();
+            
+            lastAction = { type: 'add', log: newLog };
+            showUndoToast("1本喫煙を記録しました");
+
+            renderDashboard();
+            renderAnalytics();
+        }
+
+        function recordNoSmokeRest() {
+            const now = new Date();
+            const newLog = {
+                id: Date.now(),
+                timestamp: now.getTime(),
+                dateStr: formatDateStr(now),
+                type: 'no_smoke_rest'
+            };
+
+            appData.logs.push(newLog);
+            saveDataToStorage();
+
+            lastAction = { type: 'add', log: newLog };
+            showUndoToast("タバコなし休憩を記録しました ☕");
+
+            renderDashboard();
+            renderAnalytics();
+        }
+
+        // --- UNDO SYSTEM ---
+        let undoTimeout = null;
+        function showUndoToast(msg) {
+            const toast = document.getElementById('undoToast');
+            document.getElementById('undoMsg').textContent = msg;
+            toast.classList.remove('hidden');
+
+            if (undoTimeout) clearTimeout(undoTimeout);
+            undoTimeout = setTimeout(() => {
+                toast.classList.add('hidden');
+                lastAction = null;
+            }, 5000);
+        }
+
+        function undoLastAction() {
+            if (!lastAction || !lastAction.log) return;
+            
+            const targetId = lastAction.log.id;
+            appData.logs = appData.logs.filter(l => l.id !== targetId);
+            saveDataToStorage();
+
+            document.getElementById('undoToast').classList.add('hidden');
+            lastAction = null;
+
+            renderDashboard();
+            renderAnalytics();
+        }
+
+        // --- ANALYTICS & LOGS RENDER ---
+        function renderAnalytics() {
+            render7DayChart();
+            renderStatsSummary();
+            renderTimelineLogs();
+        }
+
+        function render7DayChart() {
+            const container = document.getElementById('chartContainer');
+            container.innerHTML = '';
+
+            const days = 7;
+            const dailyCounts = [];
+            const labels = [];
+            const now = new Date();
+
+            let maxCount = appData.settings.target + 3; // base chart ceiling
+
+            for (let i = days - 1; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(now.getDate() - i);
+                const dStr = formatDateStr(d);
+                
+                const smokes = appData.logs.filter(l => l.dateStr === dStr && l.type === 'smoke').length;
+                const hasLogs = appData.logs.some(l => l.dateStr === dStr);
+
+                dailyCounts.push({ dateStr: dStr, count: smokes, hasLogs });
+                labels.push(`${d.getMonth() + 1}/${d.getDate()}`);
+
+                if (smokes > maxCount) maxCount = smokes;
+            }
+
+            // Build SVG Bar Chart
+            const target = appData.settings.target;
+            const targetYPercent = Math.max(10, 100 - (target / maxCount) * 100);
+
+            let chartHTML = `
+                <div class="relative w-full h-full flex items-end justify-between px-2">
+                    <!-- Target Line -->
+                    <div class="absolute left-0 right-0 border-b-2 border-dashed border-emerald-500/50 pointer-events-none" style="top: ${targetYPercent}%;"></div>
+            `;
+
+            dailyCounts.forEach((item, idx) => {
+                const heightPercent = Math.min(100, Math.max(5, (item.count / maxCount) * 100));
+                const isOver = item.count > target;
+                const barColor = isOver ? 'bg-amber-500' : 'bg-emerald-500';
+                const opacity = item.hasLogs ? 'opacity-100' : 'opacity-40';
+
+                chartHTML += `
+                    <div class="flex flex-col items-center z-10 w-8">
+                        <span class="text-[10px] font-bold text-slate-300 mb-1">${item.hasLogs ? item.count : '-'}</span>
+                        <div class="w-full bg-slate-700/50 rounded-t-lg h-28 flex items-end overflow-hidden">
+                            <div class="${barColor} ${opacity} w-full rounded-t-lg transition-all duration-300" style="height: ${item.hasLogs ? heightPercent : 0}%;"></div>
+                        </div>
+                        <span class="text-[9px] text-slate-400 mt-1">${labels[idx]}</span>
+                    </div>
+                `;
+            });
+
+            chartHTML += `</div>`;
+            container.innerHTML = chartHTML;
+        }
+
+        function renderStatsSummary() {
+            // Target Achieved Days & Total Savings
+            let achievedDays = 0;
+            let totalSavings = 0;
+            const pricePerCig = appData.settings.packPrice / appData.settings.packCount;
+            const baseline = appData.settings.baseline;
+            const target = appData.settings.target;
+
+            // Group logs by date
+            const logsByDate = {};
+            appData.logs.forEach(log => {
+                if (!logsByDate[log.dateStr]) logsByDate[log.dateStr] = [];
+                logsByDate[log.dateStr].push(log);
+            });
+
+            Object.keys(logsByDate).forEach(dateStr => {
+                const smokes = logsByDate[dateStr].filter(l => l.type === 'smoke').length;
+                if (smokes <= target) achievedDays++;
+
+                const savedCigs = Math.max(0, baseline - smokes);
+                totalSavings += Math.floor(savedCigs * pricePerCig);
+            });
+
+            document.getElementById('statTargetAchievedDays').textContent = `${achievedDays} 日`;
+            document.getElementById('statTotalSavings').textContent = `¥${totalSavings.toLocaleString()}`;
+
+            // Habit smoke ratio
+            const smokeLogs = appData.logs.filter(l => l.type === 'smoke');
+            const habitLogs = smokeLogs.filter(l => l.mindfulness === '習慣');
+            const habitRatio = smokeLogs.length > 0 ? Math.round((habitLogs.length / smokeLogs.length) * 100) : 0;
+            document.getElementById('statHabitRatio').textContent = `${habitRatio}%`;
+
+            // Total no smoke rests
+            const totalRests = appData.logs.filter(l => l.type === 'no_smoke_rest').length;
+            document.getElementById('statTotalNoSmokeRests').textContent = `${totalRests} 回`;
+
+            // Reward Progress Bar
+            const rewardTitle = appData.settings.rewardTitle || '未設定';
+            const rewardPrice = appData.settings.rewardPrice || 0;
+            document.getElementById('rewardTitleDisplay').textContent = rewardTitle;
+            document.getElementById('rewardTargetPrice').textContent = `目標: ¥${rewardPrice.toLocaleString()}`;
+            document.getElementById('rewardCurrentSavings').textContent = `節約額: ¥${totalSavings.toLocaleString()}`;
+
+            let progressPercent = 0;
+            if (rewardPrice > 0) {
+                progressPercent = Math.min(100, Math.floor((totalSavings / rewardPrice) * 100));
+            }
+            document.getElementById('rewardProgressPercent').textContent = `${progressPercent}%`;
+            document.getElementById('rewardProgressBar').style.width = `${progressPercent}%`;
+
+            // Time Slots
+            let morning = 0, noon = 0, evening = 0, night = 0;
+            smokeLogs.forEach(l => {
+                const hour = new Date(l.timestamp).getHours();
+                if (hour >= 5 && hour < 11) morning++;
+                else if (hour >= 11 && hour < 17) noon++;
+                else if (hour >= 17 && hour < 21) evening++;
+                else night++;
+            });
+            document.getElementById('timeSlotMorning').textContent = `${morning}本`;
+            document.getElementById('timeSlotNoon').textContent = `${noon}本`;
+            document.getElementById('timeSlotEvening').textContent = `${evening}本`;
+            document.getElementById('timeSlotNight').textContent = `${night}本`;
+        }
+
+        function renderTimelineLogs() {
+            const listElem = document.getElementById('todayLogsList');
+            listElem.innerHTML = '';
+
+            const todayStr = getTodayStr();
+            const todayLogs = appData.logs
+                .filter(l => l.dateStr === todayStr)
+                .sort((a, b) => b.timestamp - a.timestamp);
+
+            if (todayLogs.length === 0) {
+                listElem.innerHTML = `<div class="text-slate-500 text-center py-4">本日の記録はまだありません</div>`;
+                return;
+            }
+
+            todayLogs.forEach(log => {
+                const timeStr = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const isSmoke = log.type === 'smoke';
+                
+                let detailsStr = '';
+                if (isSmoke) {
+                    const sat = log.satisfaction ? `満足度: ${log.satisfaction}` : '';
+                    const mind = log.mindfulness ? `意識: ${log.mindfulness}` : '';
+                    detailsStr = [sat, mind].filter(Boolean).join(' / ');
+                }
+
+                const itemHTML = `
+                    <div class="bg-slate-900/60 p-2.5 rounded-xl flex items-center justify-between border border-slate-700/40">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-base">${isSmoke ? '🚬' : '☕'}</span>
+                            <div>
+                                <div class="font-bold text-slate-200">
+                                    ${isSmoke ? '喫煙 (1本)' : 'タバコなし休憩'}
+                                </div>
+                                ${detailsStr ? `<div class="text-[10px] text-slate-400">${detailsStr}</div>` : ''}
+                            </div>
+                        </div>
+                        <span class="text-[10px] text-slate-500 font-mono">${timeStr}</span>
+                    </div>
+                `;
+                listElem.innerHTML += itemHTML;
+            });
+        }
+
+        // --- SETTINGS FORM ---
+        function fillSettingsForm() {
+            const s = appData.settings;
+            document.getElementById('settingBaseline').value = s.baseline;
+            document.getElementById('settingTarget').value = s.target;
+            document.getElementById('settingPackPrice').value = s.packPrice;
+            document.getElementById('settingPackCount').value = s.packCount;
+            document.getElementById('settingRewardTitle').value = s.rewardTitle || '';
+            document.getElementById('settingRewardPrice').value = s.rewardPrice || '';
+        }
+
+        function saveSettings(event) {
+            event.preventDefault();
+            appData.settings.baseline = parseInt(document.getElementById('settingBaseline').value) || 15;
+            appData.settings.target = parseInt(document.getElementById('settingTarget').value) || 10;
+            appData.settings.packPrice = parseInt(document.getElementById('settingPackPrice').value) || 600;
+            appData.settings.packCount = parseInt(document.getElementById('settingPackCount').value) || 20;
+            appData.settings.rewardTitle = document.getElementById('settingRewardTitle').value;
+            appData.settings.rewardPrice = parseInt(document.getElementById('settingRewardPrice').value) || 0;
+
+            saveDataToStorage();
+            renderDashboard();
+            renderAnalytics();
+            alert("設定を保存しました。");
+        }
+
+        // --- EXPORT & IMPORT ---
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `smoke_support_backup_${getTodayStr()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function exportCSV() {
+            let csvContent = "\uFEFF日時,日付,種別,満足度,マインドフルネス\n";
+            
+            appData.logs.forEach(log => {
+                const timeStr = new Date(log.timestamp).toLocaleString();
+                const typeStr = log.type === 'smoke' ? '喫煙' : '無煙休憩';
+                const sat = log.satisfaction || '';
+                const mind = log.mindfulness || '';
+                csvContent += `"${timeStr}","${log.dateStr}","${typeStr}","${sat}","${mind}"\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `smoke_support_logs_${getTodayStr()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
+
+        function triggerImport(mode) {
+            importTypeMode = mode;
+            document.getElementById('importFileInput').click();
+        }
+
+        function handleImportFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (!imported || typeof imported !== 'object') {
+                        throw new Error("無効なJSONフォーマットです");
+                    }
+
+                    if (importTypeMode === 'replace') {
+                        if (!confirm("既存の全データを上書きします。宜しいですか？")) return;
+                        appData = {
+                            settings: { ...DEFAULT_SETTINGS, ...(imported.settings || {}) },
+                            logs: imported.logs || []
+                        };
+                    } else {
+                        // Merge Mode
+                        const existingIds = new Set(appData.logs.map(l => l.id));
+                        const newLogs = (imported.logs || []).filter(l => !existingIds.has(l.id));
+                        appData.logs = appData.logs.concat(newLogs);
+                        if (imported.settings) {
+                            appData.settings = { ...appData.settings, ...imported.settings };
+                        }
+                    }
+
+                    saveDataToStorage();
+                    fillSettingsForm();
+                    renderDashboard();
+                    renderAnalytics();
+                    alert("データの復元が完了しました。");
+                } catch (err) {
+                    alert("ファイルの読み込みに失敗しました。正しいJSONファイルを選択してください。");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset input
+        }
+
+        function confirmResetAllData() {
+            if (confirm("本当にすべての喫煙記録と設定を消去しますか？この操作は取り消せません。")) {
+                if (confirm("最終確認：本当に初期化してよろしいですか？")) {
+                    localStorage.removeItem('smoke_support_app_data');
+                    appData = {
+                        settings: { ...DEFAULT_SETTINGS },
+                        logs: []
+                    };
+                    fillSettingsForm();
+                    renderDashboard();
+                    renderAnalytics();
+                    alert("すべてのデータを初期化しました。");
+                }
+            }
+        }
+
+        // --- NAVIGATION & MODAL HELPERS ---
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                el.classList.remove('text-emerald-400');
+                el.classList.add('text-slate-500');
+            });
+
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            const activeNav = document.getElementById(`nav-${tabName}`);
+            activeNav.classList.remove('text-slate-500');
+            activeNav.classList.add('text-emerald-400');
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
